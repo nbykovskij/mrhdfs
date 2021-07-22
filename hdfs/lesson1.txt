@@ -1,5 +1,6 @@
-cat ratings.csv | cut -d ',' -f1 | uniq -c | sort -nrk1 | head -n 5
+wget https://grouplens.org/datasets/movielens/25m/
 
+cat ratings.csv | cut -d ',' -f1 | uniq -c | sort -nrk1 | head -n 5
 #читаем файл ratings.csv | с разделителем "," | считаем кол-во значений | сортируем в порядке убывания | выводим первые 5 записей
 
   32202 72315 #у пользователя 72315 всего 32202 оценок
