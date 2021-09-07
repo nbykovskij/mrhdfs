@@ -1,0 +1,71 @@
+1. Выберите 15 стран с наибольшим процентом переболевших на 31 марта (в выходящем датасете необходимы колонки: iso_code, страна, процент переболевших)
+
+from pyspark.sql.types import *
+from pyspark.sql.functions import *  
+
+df.withColumn('prc_cases', df['total_cases_per_million'].cast(FloatType())).select(['iso_code', 'location', 'date', 'total_cases_per_million', 'prc_cases']).where('date=="2020-03-31"').sort(col('prc_cases').desc()).show(15)
+
++--------+--------------+----------+-----------------------+---------+
+|iso_code|      location|      date|total_cases_per_million|prc_cases|
++--------+--------------+----------+-----------------------+---------+
+|     VAT|       Vatican|2020-03-31|               7416.564| 7416.564|
+|     SMR|    San Marino|2020-03-31|               6953.857| 6953.857|
+|     AND|       Andorra|2020-03-31|               4866.369| 4866.369|
+|     LUX|    Luxembourg|2020-03-31|               3479.367| 3479.367|
+|     ISL|       Iceland|2020-03-31|               3326.007| 3326.007|
+|     ESP|         Spain|2020-03-31|               2051.619| 2051.619|
+|     CHE|   Switzerland|2020-03-31|               1918.629| 1918.629|
+|     LIE| Liechtenstein|2020-03-31|               1783.045| 1783.045|
+|     ITA|         Italy|2020-03-31|               1749.732| 1749.732|
+|     MCO|        Monaco|2020-03-31|               1325.043| 1325.043|
+|     AUT|       Austria|2020-03-31|               1130.307| 1130.307|
+|     BEL|       Belgium|2020-03-31|                1102.28|  1102.28|
+|OWID_EUN|European Union|2020-03-31|                  893.9|    893.9|
+|     DEU|       Germany|2020-03-31|                857.062|  857.062|
+|     NOR|        Norway|2020-03-31|                856.077|  856.077|
++--------+--------------+----------+-----------------------+---------+
+
+3 - Посчитайте изменение случаев относительно предыдущего дня в России за последнюю неделю марта 2021. 
+(например: в россии вчера было 9150 , сегодня 8763, итог: -387) (в выходящем датасете необходимы колонки: число, 
+кол-во новых случаев вчера, кол-во новых случаев сегодня, дельта)
+
+from pyspark.sql import Window
+
+w = Window.partitionBy('iso_code').orderBy('date')
+
+df = df.withColumn("prev_value", lag(df.new_cases).over(w))
+
+df = df.withColumn("diff", when(isnull(df.new_cases - df.prev_value), 0).otherwise(df.new_cases-df.prev_value))
+
+df.select(['iso_code', 'location', 'date', 'new_cases', 'prev_value',  'diff']).where('date<="2020-03-31" and date>="2020-03-25" and location = "Russia"').show(10)
++--------+--------+----------+---------+----------+-----+
+|iso_code|location|      date|new_cases|prev_value| diff|
++--------+--------+----------+---------+----------+-----+
+|     RUS|  Russia|2020-03-25|    163.0|      57.0|106.0|
+|     RUS|  Russia|2020-03-26|    182.0|     163.0| 19.0|
+|     RUS|  Russia|2020-03-27|    196.0|     182.0| 14.0|
+|     RUS|  Russia|2020-03-28|    228.0|     196.0| 32.0|
+|     RUS|  Russia|2020-03-29|    270.0|     228.0| 42.0|
+|     RUS|  Russia|2020-03-30|    302.0|     270.0| 32.0|
+|     RUS|  Russia|2020-03-31|    501.0|     302.0|199.0|
++--------+--------+----------+---------+----------+-----+
+
+2. Top 10 стран с максимальным зафиксированным кол-вом новых случаев за последнюю неделю марта 2021 в отсортированном порядке по убыванию
+(в выходящем датасете необходимы колонки: число, страна, кол-во новых случаев)
+
+df.withColumn('new_cases', df['new_cases'].cast(FloatType())).select(['iso_code', 'location', 'date', 'new_cases']).where('date<="2020-03-31" and date>="2020-03-25"').groupBy('location').agg(sum('new_cases').alias('sum_new_cases')).sort(col('sum_new_cases').desc()).show(15)
++--------------+-------------+
+|      location|sum_new_cases|
++--------------+-------------+
+|         Spain|      56038.0|
+|          Asia|      48924.0|
+|       Germany|      38822.0|
+|         Italy|      36616.0|
+|        France|      29906.0|
+|United Kingdom|      23689.0|
+|          Iran|      19794.0|
+|        Turkey|      11659.0|
+| South America|       8664.0|
+|       Belgium|       8506.0|
++--------------+-------------+
+
